@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link type="application/atom+xml" rel="alternate" href="https://www.carlosabalde.com/feed.xml" title="Carlos Abalde" />
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Moving logic to the caching edge (and back) | Carlos Abalde</title>
+<meta name="generator" content="Jekyll v4.3.1" />
+<meta property="og:title" content="Moving logic to the caching edge (and back)" />
+<meta name="author" content="carlosabalde" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="There is no break for marketers. Any day is a good day to coin new bullshit buzzwords and make the world a worst place to live in. This is particularly painful in the technical arena. You simply can’t safely leave home without your bullshit detector. This post is about one of those popular buzzwords: edge computing. Did we need a new word to talk about decentralization in the cloud -fog? 🤷- computing era? Probably not, but that’s not the point here :) It looks like that term called edge computing is becoming more and more popular lately. In fact, it seems I’ve working on edge computing for the last few years and I wasn’t even aware of that. I guess it’s time to update my LinkedIn headline. All kidding aside, yes, edge computing is a highly recommended strategy to have in mind in your global architecture. But, what logic should be moved to the edge? How to move that logic? There is not simple answer for those questions, but this old post by Per Buer about moving access control logic to a caching layer built on top of Varnish Cache is a nice starting point." />
+<meta property="og:description" content="There is no break for marketers. Any day is a good day to coin new bullshit buzzwords and make the world a worst place to live in. This is particularly painful in the technical arena. You simply can’t safely leave home without your bullshit detector. This post is about one of those popular buzzwords: edge computing. Did we need a new word to talk about decentralization in the cloud -fog? 🤷- computing era? Probably not, but that’s not the point here :) It looks like that term called edge computing is becoming more and more popular lately. In fact, it seems I’ve working on edge computing for the last few years and I wasn’t even aware of that. I guess it’s time to update my LinkedIn headline. All kidding aside, yes, edge computing is a highly recommended strategy to have in mind in your global architecture. But, what logic should be moved to the edge? How to move that logic? There is not simple answer for those questions, but this old post by Per Buer about moving access control logic to a caching layer built on top of Varnish Cache is a nice starting point." />
+<link rel="canonical" href="https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back" />
+<meta property="og:url" content="https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back" />
+<meta property="og:site_name" content="Carlos Abalde" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-06-27T19:30:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Moving logic to the caching edge (and back)" />
+<meta name="google-site-verification" content="gupAMEdMMxsGrEXcq2lo7hSaR-c_Mt463R1KPXZ33go" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"carlosabalde"},"dateModified":"2018-06-27T19:30:00+02:00","datePublished":"2018-06-27T19:30:00+02:00","description":"There is no break for marketers. Any day is a good day to coin new bullshit buzzwords and make the world a worst place to live in. This is particularly painful in the technical arena. You simply can’t safely leave home without your bullshit detector. This post is about one of those popular buzzwords: edge computing. Did we need a new word to talk about decentralization in the cloud -fog? 🤷- computing era? Probably not, but that’s not the point here :) It looks like that term called edge computing is becoming more and more popular lately. In fact, it seems I’ve working on edge computing for the last few years and I wasn’t even aware of that. I guess it’s time to update my LinkedIn headline. All kidding aside, yes, edge computing is a highly recommended strategy to have in mind in your global architecture. But, what logic should be moved to the edge? How to move that logic? There is not simple answer for those questions, but this old post by Per Buer about moving access control logic to a caching layer built on top of Varnish Cache is a nice starting point.","headline":"Moving logic to the caching edge (and back)","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.carlosabalde.com/assets/images/me.jpg"},"name":"carlosabalde"},"url":"https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="icon" href="/assets/images/favicon.png" />
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/main.css" />
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="post">
+    <a class="post__back" href="/">&lt;-- home</a>
+    <h1 class="post__title">Moving logic to the caching edge (and back)</h1>
+    <p class="post__date">June 27, 2018</p>
+    <div class="post__content"?>
+        <p>There is no break for marketers. Any day is a good day to coin new bullshit buzzwords and make the world a worst place to live in. This is particularly painful in the technical arena. <strong>You simply can’t safely leave home without your bullshit detector</strong>.</p>
+
+<p>This post is about one of those popular buzzwords: <strong>edge computing</strong>. Did we need a new word to talk about decentralization in the cloud -fog? 🤷- computing era? Probably not, but that’s not the point here :)</p>
+
+<p>It looks like that term called edge computing is becoming more and more popular lately. In fact, it seems I’ve working on edge computing for the last few years and I wasn’t even aware of that. I guess it’s time to update my LinkedIn headline.</p>
+
+<p>All kidding aside, <strong>yes, edge computing is a highly recommended strategy to have in mind in your global architecture</strong>. But, what logic should be moved to the edge? How to move that logic? There is not simple answer for those questions, but <a href="https://highscalability.com/blog/2012/9/12/using-varnish-for-paywalls-moving-logic-to-the-edge.html">this old post</a> by Per Buer about moving access control logic to a caching layer built on top of <a href="https://varnish-cache.org">Varnish Cache</a> is a nice starting point.</p>
+
+<!--more-->
+
+<p>You can embed logic in Nginx, Apache or in your ultra-expensive load balancer, but <strong>Varnish Cache is particularly good at that</strong>. Even when caching is not a key feature for you -really? :)-, Varnish Cache still is an element to consider. If you want to know more about that I’d suggest that you read about two powerful Varnish Cache weapons: the <a href="https://book.varnish-software.com/4.0/chapters/VCL_Basics.html">Varnish Configuration Language</a> (i.e. VCL) and <a href="https://book.varnish-software.com/4.0/chapters/Appendix_D__VMOD_Development.html">Varnish Modules</a> (i.e. VMODs). <strong>If you think your beloved Nginx or your shiny load balancer can do that better than Varnish Cache, I must respectfully ask you to check some documentation because you’re simply wrong :)</strong></p>
+
+<p>However, although moving certain logic to the caching edge is a great idea, <strong>sadly all that glitters is not gold. When moving logic to the edge, you’re both changing where the logic is executed -hurray!- and where the logic is defined -meh!-</strong>. Those facets are usually managed by <a href="https://blog.codinghorror.com/vampires-programmers-versus-werewolves-sysadmins/">completely different beasts</a>, and they have been confronted since ancient times: vampires (i.e. programmers), in charge of defining the logic, and werewolves (i.e. sysadmins), in charge of setting up infrastructure running in the edge.</p>
+
+<p>An edge computing strategy based on Varnish Cache + VCL gives full responsibility to sysadmins, but <strong>sysadmins don’t want to worry about logic details -full disclosure: they don’t understand it-, and, of course they’ll never let developers change configuration (i.e. VCL in this particular case) of any infrastructure they are in charge of</strong>. Yes, this is based on a true story, and that’s why I created the <a href="https://github.com/carlosabalde/libvmod-cfg">cfg VMOD</a> :)</p>
+
+<p>I’m listening to you, my dear Varnish expert. I know what you are thinking about: “you don’t need a VMOD for that! Simply let developers generate some VCL fragments and find a way to integrate that in the deployment workflow”. It’s an option, but not sure if adding more complexity and dependencies is the way to go here.</p>
+
+<p>So, <strong>how does that cfg VMOD help mitigate the ancient conflict between vampires and werewolves? Let’s go through a few examples.</strong></p>
+
+<p><strong>Let’s assume you’re a sysadmin running an online shop. The release of a new game-changer product is approaching and the marketing team (yes, them again!) wants to create some expectation closing access to the shop one hour before the launch</strong>. Not a problem! You could do that simply writing a few lines of VCL in order to redirect visitors to some static page during the closing window. Sadly the launch date is not yet defined and you want to go on holidays. Here comes the cfg VMOD to the rescue!</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sub vcl_init {
+    # $ cat setting.ini
+    # [expectation]
+    # start: 1459468800
+    # stop: 1459472400
+    # ...
+    new settings = cfg.file(
+        "http://192.168.0.42/settings.ini",
+        period=60);
+
+    ...
+}
+
+sub vcl_recv {
+    if (std.time(settings.get("expectation:start"), now) &lt; now &amp;&amp;
+        std.time(settings.get("expectation:stop"), now) &gt; now) {
+        # Generate 302 synthetic response.
+    }
+
+    ...
+}
+</code></pre></div></div>
+
+<p>Basically you’ve moved the closing logic to the caching edge, but input for that logic is still handled by developers. They need to keep the remote settings.ini file updated. Moreover, by writing some extra VCL you could give them control about when contents of that file will be refreshed. Time to leave to the beach! :)</p>
+
+<p><strong>Let’s assume now you’re back from holidays. First thing in the morning, the head of development is waiting at your desk with new requirements</strong>. This time the development team plans an incremental migration to a new infrastructure: some incoming URLs should be handled by new backend servers, some by the old ones. Of course, it’s not trivial to identify what URLs should be routed to the new servers. Even worse, that’s going to be changing every week during the next months, until the migration to the infrastructure is fully completed.</p>
+
+<p>The routing logic needs to be executed in the caching edge, but you would like to make developers responsible of maintaining the URL matching logic and let them change it whenever they want. This is similar to the previous case, but this time a simple key-value scheme is not enough. No worries. The cfg VMOD can help here too!</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sub vcl_init {
+    # $ cat backends.rules
+    # (?i)\.(?:jpg|png|svg)(?:\?.*)?$      -&gt; old
+    # (?i)^www\.(?:foo|bar)\.com(?::\d+)?/ -&gt; new
+    # ...
+    new backends = cfg.rules(
+        "http://192.168.0.42/backends.rules",
+        period=300);
+
+    ...
+}
+
+sub vcl_backend_fetch {
+    set bereq.http.X-Backend = backends.get(bereq.http.Host + bereq.url, "old");
+    if (bereq.http.X-Backend == "old") {
+        set bereq.backend = ...;
+    } elsif (bereq.http.X-Backend == "...") {
+        set bereq.backend = ...;
+    } elsif ...
+
+    ...
+}
+</code></pre></div></div>
+
+<p>So, somehow you’ve moved execution of the pattern matching logic to the caching edge, but definition of that logic is still handled by the origin servers.</p>
+
+<p><strong>Of course this pattern matching strategy is limited. What if simple regular expressions are not enough? What if they are enough but the result is incomprehensible?</strong> Again, the cfg VMOD is the solution to your problems: simply let developers write proper logic using <a href="https://www.lua.org">Lua</a> and then run it inside Varnish Cache while processing HTTP requests.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sub vcl_init {
+    # $ cat backends.lua
+    # local host = string.gsub(string.lower(ARGV[0]), ':%d+$', '')
+    # local url = string.lower(ARGV[1])
+    #
+    # varnish.log('Running Lua backend selection logic')
+    #
+    # -- Remember that Lua's pattern matching is not equivalent to POSIX regular
+    # -- expressions. Check https://www.lua.org/pil/20.2.html and
+    # -- http://lua-users.org/wiki/PatternsTutorial for details.
+    # if host == 'www.foo.com' or host == 'www.bar.com' then
+    #     if string.match(url, '^/admin/') then
+    #        return 'new'
+    #     end
+    # end
+    #
+    # return 'old'
+    new backends = cfg.script(
+        "http://192.168.0.42/backends.rules",
+        period=300);
+
+    ...
+}
+
+sub vcl_backend_fetch {
+    backends.init();
+    backends.push(bereq.http.Host);
+    backends.push(bereq.url);
+    backends.execute();
+    set bereq.http.X-Backend = backends.get_result();
+    backends.free_result();
+    if (bereq.http.X-Backend == "old") {
+        set bereq.backend = ...;
+    } elsif (bereq.http.X-Backend == "...") {
+        set bereq.backend = ...;
+    } elsif ...
+
+    ...
+}
+</code></pre></div></div>
+
+<p><strong>That’s it for today. Happy edge computing to everybody! :)</strong></p>
+
+    </div>
+    <p class="post__meta">
+        
+            <a href="/blog/tags/english">#english</a>
+        
+            <a href="/blog/tags/dev">#dev</a>
+        
+    </p>
+</div>
+
+        <div class="footer">
+    Powered by <a href="https://jekyllrb.com">Jekyll</a> and
+    <a href="https://pages.github.com">GitHub Pages</a>
+</div>
+
+    </div>
+    
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-S1JL140EZE"></script>
+        <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-S1JL140EZE');
+        </script>
+    
+</body>
+
+</html>

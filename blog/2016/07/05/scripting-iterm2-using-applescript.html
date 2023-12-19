@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link type="application/atom+xml" rel="alternate" href="https://www.carlosabalde.com/feed.xml" title="Carlos Abalde" />
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Scripting iTerm2 using AppleScript | Carlos Abalde</title>
+<meta name="generator" content="Jekyll v4.3.1" />
+<meta property="og:title" content="Scripting iTerm2 using AppleScript" />
+<meta name="author" content="carlosabalde" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="As a developer and as a OSX user I use iTerm2 in a daily basis. It’s an awesome open source piece of software. Besides, when you get familiar with features such as split panes, it’s also an amazing productivity booster." />
+<meta property="og:description" content="As a developer and as a OSX user I use iTerm2 in a daily basis. It’s an awesome open source piece of software. Besides, when you get familiar with features such as split panes, it’s also an amazing productivity booster." />
+<link rel="canonical" href="https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript" />
+<meta property="og:url" content="https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript" />
+<meta property="og:site_name" content="Carlos Abalde" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-07-05T09:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Scripting iTerm2 using AppleScript" />
+<meta name="google-site-verification" content="gupAMEdMMxsGrEXcq2lo7hSaR-c_Mt463R1KPXZ33go" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"carlosabalde"},"dateModified":"2016-07-05T09:00:00+02:00","datePublished":"2016-07-05T09:00:00+02:00","description":"As a developer and as a OSX user I use iTerm2 in a daily basis. It’s an awesome open source piece of software. Besides, when you get familiar with features such as split panes, it’s also an amazing productivity booster.","headline":"Scripting iTerm2 using AppleScript","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.carlosabalde.com/assets/images/me.jpg"},"name":"carlosabalde"},"url":"https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="icon" href="/assets/images/favicon.png" />
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/main.css" />
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="post">
+    <a class="post__back" href="/">&lt;-- home</a>
+    <h1 class="post__title">Scripting iTerm2 using AppleScript</h1>
+    <p class="post__date">July 5, 2016</p>
+    <div class="post__content"?>
+        <p>As a developer and as a OSX user I use <a href="https://www.iterm2.com">iTerm2</a> in a daily basis. It’s an awesome open source piece of software. Besides, when you get familiar with features such as split panes, it’s also an amazing productivity booster.</p>
+
+<!--more-->
+
+<p>From time to time I need to SSH to multiple servers to make some checks. For example, a few days ago I needed to SSH to 8 Varnish Cache and 3 Redis servers to check some log files, access certain stats, etc. I needed to do that at 10 AM, then 20 minutes later again, then at 12 PM, etc. Every time I would need to create a new iTerm2 tab, then create enough panes, then execute SSH commands, etc. It looks like something a machine could do for me, isn’t it?</p>
+
+<p>Of course <a href="https://www.iterm2.com/documentation-scripting.html">the answer is yes</a>. The pleasant surprise here was how extremely simple it happened to be creating a disposable trivial script to do the job. All panes and SSH connections ready in less than five seconds anytime I needed them. Combine this with the iTerm2 broadcasting feature and you’ll understand what love is :)️</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#! /usr/bin/osascript
+
+set commands to { ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "redis-cli -c -p 6379" ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "redis-cli -c -p 6379" ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "redis-cli -c -p 6379" ¬
+    } ¬
+}
+
+tell application "iTerm"
+    # Create tab.
+    tell current window
+        create tab with default profile
+    end tell
+
+    # Create sessions.
+    tell current session of current window
+        split horizontally with default profile
+        split horizontally with default profile
+        split horizontally with default profile
+        split horizontally with default profile
+    end tell
+    tell session 1 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 3 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 5 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 7 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 9 of current tab of current window
+        split vertically with default profile
+        split vertically with default profile
+    end tell
+
+    # Establish connections &amp; execute actions.
+    repeat with i from 1 to count of commands
+        tell session i of current tab of current window
+            write text (connection of item i of commands)
+            write text (action of item i of commands)
+        end tell
+    end repeat
+end tell
+</code></pre></div></div>
+
+    </div>
+    <p class="post__meta">
+        
+            <a href="/blog/tags/english">#english</a>
+        
+            <a href="/blog/tags/dev">#dev</a>
+        
+    </p>
+</div>
+
+        <div class="footer">
+    Powered by <a href="https://jekyllrb.com">Jekyll</a> and
+    <a href="https://pages.github.com">GitHub Pages</a>
+</div>
+
+    </div>
+    
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-S1JL140EZE"></script>
+        <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-S1JL140EZE');
+        </script>
+    
+</body>
+
+</html>

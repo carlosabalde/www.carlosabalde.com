@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link type="application/atom+xml" rel="alternate" href="https://www.carlosabalde.com/feed.xml" title="Carlos Abalde" />
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Repacking an ubuntu/xenial64 Vagrant box | Carlos Abalde</title>
+<meta name="generator" content="Jekyll v4.3.1" />
+<meta property="og:title" content="Repacking an ubuntu/xenial64 Vagrant box" />
+<meta name="author" content="carlosabalde" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="I use Vagrant + VirtualBox + SaltStack a lot in order to create lightweight &amp; reproducible development environments. I tend to use custom boxes based on popular public boxes like ubuntu/trusty64. Usually my boxes are simple mirrors, but due to some unpleasing experiences in the past I prefer to always keep my own copies and completely freeze my development environments. Creating a mirror of an existing box is trivial: minimal Vagrant file disabling the ssh.insert_key feature + vagrant up + vagrant package + upload to https://app.vagrantup.com. I’ve done that many times and it works like a charm. To be more precise, it has been working like a charm until today, when I tried to create a mirror of the ubuntu/xenial64 box." />
+<meta property="og:description" content="I use Vagrant + VirtualBox + SaltStack a lot in order to create lightweight &amp; reproducible development environments. I tend to use custom boxes based on popular public boxes like ubuntu/trusty64. Usually my boxes are simple mirrors, but due to some unpleasing experiences in the past I prefer to always keep my own copies and completely freeze my development environments. Creating a mirror of an existing box is trivial: minimal Vagrant file disabling the ssh.insert_key feature + vagrant up + vagrant package + upload to https://app.vagrantup.com. I’ve done that many times and it works like a charm. To be more precise, it has been working like a charm until today, when I tried to create a mirror of the ubuntu/xenial64 box." />
+<link rel="canonical" href="https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box" />
+<meta property="og:url" content="https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box" />
+<meta property="og:site_name" content="Carlos Abalde" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-11-12T15:30:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Repacking an ubuntu/xenial64 Vagrant box" />
+<meta name="google-site-verification" content="gupAMEdMMxsGrEXcq2lo7hSaR-c_Mt463R1KPXZ33go" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"carlosabalde"},"dateModified":"2017-11-12T15:30:00+01:00","datePublished":"2017-11-12T15:30:00+01:00","description":"I use Vagrant + VirtualBox + SaltStack a lot in order to create lightweight &amp; reproducible development environments. I tend to use custom boxes based on popular public boxes like ubuntu/trusty64. Usually my boxes are simple mirrors, but due to some unpleasing experiences in the past I prefer to always keep my own copies and completely freeze my development environments. Creating a mirror of an existing box is trivial: minimal Vagrant file disabling the ssh.insert_key feature + vagrant up + vagrant package + upload to https://app.vagrantup.com. I’ve done that many times and it works like a charm. To be more precise, it has been working like a charm until today, when I tried to create a mirror of the ubuntu/xenial64 box.","headline":"Repacking an ubuntu/xenial64 Vagrant box","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.carlosabalde.com/assets/images/me.jpg"},"name":"carlosabalde"},"url":"https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="icon" href="/assets/images/favicon.png" />
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/main.css" />
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="post">
+    <a class="post__back" href="/">&lt;-- home</a>
+    <h1 class="post__title">Repacking an ubuntu/xenial64 Vagrant box</h1>
+    <p class="post__date">November 12, 2017</p>
+    <div class="post__content"?>
+        <p>I use Vagrant + VirtualBox + SaltStack a lot in order to create lightweight &amp; reproducible development environments. I tend to use custom boxes based on popular public boxes like <code class="language-plaintext highlighter-rouge">ubuntu/trusty64</code>. Usually my boxes are simple mirrors, but due to some unpleasing experiences in the past I prefer to always keep my own copies and completely freeze my development environments.</p>
+
+<p>Creating a mirror of an existing box is trivial: minimal Vagrant file disabling the <code class="language-plaintext highlighter-rouge">ssh.insert_key</code> feature + <code class="language-plaintext highlighter-rouge">vagrant up</code> + <code class="language-plaintext highlighter-rouge">vagrant package</code> + upload to <a href="https://app.vagrantup.com">https://app.vagrantup.com</a>. I’ve done that many times and it works like a charm. To be more precise, it has been working like a charm until today, when I tried to create a mirror of the <code class="language-plaintext highlighter-rouge">ubuntu/xenial64</code> box.</p>
+
+<!--more-->
+
+<p>Of course I’m not the first one experiencing this problem. The symptoms have been extensible described in <a href="https://github.com/hashicorp/vagrant/issues/5186/">https://github.com/hashicorp/vagrant/issues/5186/</a>. However, I was not able to find any article clearly describing the solution to this headache. Therefore, here it goes the recipe you’re looking for :)</p>
+
+<ol>
+  <li>
+    <p>Do the usual thing: create a minimal Vagrant file, but don’t worry about the <code class="language-plaintext highlighter-rouge">ssh.insert_key</code> feature this time. Let Vagrant secure the VM during the initial boot. We’ll revert that later.</p>
+
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> Vagrant.configure('2') do |config|
+   config.vm.box = 'ubuntu/xenial64'
+   config.vm.box_version = '=20171110.0.0'
+   config.vm.provider 'virtualbox' do |vb|
+     vb.customize [ 'modifyvm', :id, '--uartmode1', 'disconnected' ]
+   end
+   # config.ssh.insert_key = false
+   # config.ssh.username = 'vagrant'
+   config.vbguest.auto_update = false
+ end
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>Create the <code class="language-plaintext highlighter-rouge">vagrant</code> user, add it to the same groups assigned to the <code class="language-plaintext highlighter-rouge">ubuntu</code> user, set up its SSH key using the insecure Vagrant key pair, etc. Basically, you need to follow the steps in <a href="https://www.vagrantup.com/docs/boxes/base.html">https://www.vagrantup.com/docs/boxes/base.html</a> to fix what’s missing in the base box.</p>
+
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> $ sudo adduser vagrant
+ $ sudo usermod -a -G ubuntu vagrant
+ $ sudo usermod -a -G adm vagrant
+ $ ...
+ $ sudo usermod -a -G lxd vagrant
+ $ sudo -u vagrant mkdir /home/vagrant/.ssh/
+ $ sudo -u vagrant chmod 700 /home/vagrant/.ssh/
+ $ sudo -u vagrant wget --no-check-certificate \
+     https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub \
+     -O /home/vagrant/.ssh/authorized_keys
+ $ sudo -u vagrant chmod 600 /home/vagrant/.ssh/authorized_keys
+ $ sudo visudo
+     # vagrant ALL=(ALL) NOPASSWD: ALL
+ $ sudo passwd root
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>Ungracefully stop the VM (for example using the VirtualBox UI) and then adjust the Vagrant file uncommenting the SSH options initially disabled. Next, remove the random private key stored in the host machine during the initial boot (i.e. <code class="language-plaintext highlighter-rouge">rm .vagrant/machines/default/virtualbox/private_key</code>).</p>
+  </li>
+  <li>
+    <p>Execute a <code class="language-plaintext highlighter-rouge">vagrant up + ssh + halt</code> cycle in order to check everything is working as expected. Then you can package the box in the usual way (i.e. <code class="language-plaintext highlighter-rouge">vagrant package</code>) and destroy the VM (i.e. <code class="language-plaintext highlighter-rouge">vagrant destroy</code>).</p>
+  </li>
+  <li>
+    <p>You may want to check everything works as expected in preparation for the upload of the box to <a href="https://app.vagrantup.com">https://app.vagrantup.com</a>. You can do it the usual way:</p>
+
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> $ vagrant box add --name foo /path/to/package.box
+ $ vagrant up
+     Vagrant.configure('2') do |config|
+       config.vm.box = 'foo'
+     end
+ $ VAGRANT_LOG=info vagrant ssh
+ $ ...
+ $ vagrant destroy
+ $ vagrant box remove foo
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>That’s all you need to know. It’s not rocket science at all, but this is the kind of thing you expect to work out of the box (pun intended :) and it becomes a headache when things don’t go as expected.</p>
+  </li>
+</ol>
+
+<p>Hope it helps! :)</p>
+
+    </div>
+    <p class="post__meta">
+        
+            <a href="/blog/tags/english">#english</a>
+        
+            <a href="/blog/tags/dev">#dev</a>
+        
+    </p>
+</div>
+
+        <div class="footer">
+    Powered by <a href="https://jekyllrb.com">Jekyll</a> and
+    <a href="https://pages.github.com">GitHub Pages</a>
+</div>
+
+    </div>
+    
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-S1JL140EZE"></script>
+        <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-S1JL140EZE');
+        </script>
+    
+</body>
+
+</html>

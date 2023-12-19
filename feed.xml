@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.1">Jekyll</generator><link href="https://www.carlosabalde.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.carlosabalde.com/" rel="alternate" type="text/html" /><updated>2023-12-19T14:54:49+01:00</updated><id>https://www.carlosabalde.com/feed.xml</id><title type="html">Carlos Abalde</title><subtitle>A selection of random thoughts and useless stuff I write from time to time</subtitle><author><name>carlosabalde</name></author><entry><title type="html">Moving logic to the caching edge (and back)</title><link href="https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back" rel="alternate" type="text/html" title="Moving logic to the caching edge (and back)" /><published>2018-06-27T19:30:00+02:00</published><updated>2018-06-27T19:30:00+02:00</updated><id>https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back</id><content type="html" xml:base="https://www.carlosabalde.com/blog/2018/06/27/moving-logic-to-the-caching-edge-and-back"><![CDATA[<p>There is no break for marketers. Any day is a good day to coin new bullshit buzzwords and make the world a worst place to live in. This is particularly painful in the technical arena. <strong>You simply can’t safely leave home without your bullshit detector</strong>.</p>
+
+<p>This post is about one of those popular buzzwords: <strong>edge computing</strong>. Did we need a new word to talk about decentralization in the cloud -fog? 🤷- computing era? Probably not, but that’s not the point here :)</p>
+
+<p>It looks like that term called edge computing is becoming more and more popular lately. In fact, it seems I’ve working on edge computing for the last few years and I wasn’t even aware of that. I guess it’s time to update my LinkedIn headline.</p>
+
+<p>All kidding aside, <strong>yes, edge computing is a highly recommended strategy to have in mind in your global architecture</strong>. But, what logic should be moved to the edge? How to move that logic? There is not simple answer for those questions, but <a href="https://highscalability.com/blog/2012/9/12/using-varnish-for-paywalls-moving-logic-to-the-edge.html">this old post</a> by Per Buer about moving access control logic to a caching layer built on top of <a href="https://varnish-cache.org">Varnish Cache</a> is a nice starting point.</p>
+
+<!--more-->
+
+<p>You can embed logic in Nginx, Apache or in your ultra-expensive load balancer, but <strong>Varnish Cache is particularly good at that</strong>. Even when caching is not a key feature for you -really? :)-, Varnish Cache still is an element to consider. If you want to know more about that I’d suggest that you read about two powerful Varnish Cache weapons: the <a href="https://book.varnish-software.com/4.0/chapters/VCL_Basics.html">Varnish Configuration Language</a> (i.e. VCL) and <a href="https://book.varnish-software.com/4.0/chapters/Appendix_D__VMOD_Development.html">Varnish Modules</a> (i.e. VMODs). <strong>If you think your beloved Nginx or your shiny load balancer can do that better than Varnish Cache, I must respectfully ask you to check some documentation because you’re simply wrong :)</strong></p>
+
+<p>However, although moving certain logic to the caching edge is a great idea, <strong>sadly all that glitters is not gold. When moving logic to the edge, you’re both changing where the logic is executed -hurray!- and where the logic is defined -meh!-</strong>. Those facets are usually managed by <a href="https://blog.codinghorror.com/vampires-programmers-versus-werewolves-sysadmins/">completely different beasts</a>, and they have been confronted since ancient times: vampires (i.e. programmers), in charge of defining the logic, and werewolves (i.e. sysadmins), in charge of setting up infrastructure running in the edge.</p>
+
+<p>An edge computing strategy based on Varnish Cache + VCL gives full responsibility to sysadmins, but <strong>sysadmins don’t want to worry about logic details -full disclosure: they don’t understand it-, and, of course they’ll never let developers change configuration (i.e. VCL in this particular case) of any infrastructure they are in charge of</strong>. Yes, this is based on a true story, and that’s why I created the <a href="https://github.com/carlosabalde/libvmod-cfg">cfg VMOD</a> :)</p>
+
+<p>I’m listening to you, my dear Varnish expert. I know what you are thinking about: “you don’t need a VMOD for that! Simply let developers generate some VCL fragments and find a way to integrate that in the deployment workflow”. It’s an option, but not sure if adding more complexity and dependencies is the way to go here.</p>
+
+<p>So, <strong>how does that cfg VMOD help mitigate the ancient conflict between vampires and werewolves? Let’s go through a few examples.</strong></p>
+
+<p><strong>Let’s assume you’re a sysadmin running an online shop. The release of a new game-changer product is approaching and the marketing team (yes, them again!) wants to create some expectation closing access to the shop one hour before the launch</strong>. Not a problem! You could do that simply writing a few lines of VCL in order to redirect visitors to some static page during the closing window. Sadly the launch date is not yet defined and you want to go on holidays. Here comes the cfg VMOD to the rescue!</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sub vcl_init {
+    # $ cat setting.ini
+    # [expectation]
+    # start: 1459468800
+    # stop: 1459472400
+    # ...
+    new settings = cfg.file(
+        "http://192.168.0.42/settings.ini",
+        period=60);
+
+    ...
+}
+
+sub vcl_recv {
+    if (std.time(settings.get("expectation:start"), now) &lt; now &amp;&amp;
+        std.time(settings.get("expectation:stop"), now) &gt; now) {
+        # Generate 302 synthetic response.
+    }
+
+    ...
+}
+</code></pre></div></div>
+
+<p>Basically you’ve moved the closing logic to the caching edge, but input for that logic is still handled by developers. They need to keep the remote settings.ini file updated. Moreover, by writing some extra VCL you could give them control about when contents of that file will be refreshed. Time to leave to the beach! :)</p>
+
+<p><strong>Let’s assume now you’re back from holidays. First thing in the morning, the head of development is waiting at your desk with new requirements</strong>. This time the development team plans an incremental migration to a new infrastructure: some incoming URLs should be handled by new backend servers, some by the old ones. Of course, it’s not trivial to identify what URLs should be routed to the new servers. Even worse, that’s going to be changing every week during the next months, until the migration to the infrastructure is fully completed.</p>
+
+<p>The routing logic needs to be executed in the caching edge, but you would like to make developers responsible of maintaining the URL matching logic and let them change it whenever they want. This is similar to the previous case, but this time a simple key-value scheme is not enough. No worries. The cfg VMOD can help here too!</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sub vcl_init {
+    # $ cat backends.rules
+    # (?i)\.(?:jpg|png|svg)(?:\?.*)?$      -&gt; old
+    # (?i)^www\.(?:foo|bar)\.com(?::\d+)?/ -&gt; new
+    # ...
+    new backends = cfg.rules(
+        "http://192.168.0.42/backends.rules",
+        period=300);
+
+    ...
+}
+
+sub vcl_backend_fetch {
+    set bereq.http.X-Backend = backends.get(bereq.http.Host + bereq.url, "old");
+    if (bereq.http.X-Backend == "old") {
+        set bereq.backend = ...;
+    } elsif (bereq.http.X-Backend == "...") {
+        set bereq.backend = ...;
+    } elsif ...
+
+    ...
+}
+</code></pre></div></div>
+
+<p>So, somehow you’ve moved execution of the pattern matching logic to the caching edge, but definition of that logic is still handled by the origin servers.</p>
+
+<p><strong>Of course this pattern matching strategy is limited. What if simple regular expressions are not enough? What if they are enough but the result is incomprehensible?</strong> Again, the cfg VMOD is the solution to your problems: simply let developers write proper logic using <a href="https://www.lua.org">Lua</a> and then run it inside Varnish Cache while processing HTTP requests.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sub vcl_init {
+    # $ cat backends.lua
+    # local host = string.gsub(string.lower(ARGV[0]), ':%d+$', '')
+    # local url = string.lower(ARGV[1])
+    #
+    # varnish.log('Running Lua backend selection logic')
+    #
+    # -- Remember that Lua's pattern matching is not equivalent to POSIX regular
+    # -- expressions. Check https://www.lua.org/pil/20.2.html and
+    # -- http://lua-users.org/wiki/PatternsTutorial for details.
+    # if host == 'www.foo.com' or host == 'www.bar.com' then
+    #     if string.match(url, '^/admin/') then
+    #        return 'new'
+    #     end
+    # end
+    #
+    # return 'old'
+    new backends = cfg.script(
+        "http://192.168.0.42/backends.rules",
+        period=300);
+
+    ...
+}
+
+sub vcl_backend_fetch {
+    backends.init();
+    backends.push(bereq.http.Host);
+    backends.push(bereq.url);
+    backends.execute();
+    set bereq.http.X-Backend = backends.get_result();
+    backends.free_result();
+    if (bereq.http.X-Backend == "old") {
+        set bereq.backend = ...;
+    } elsif (bereq.http.X-Backend == "...") {
+        set bereq.backend = ...;
+    } elsif ...
+
+    ...
+}
+</code></pre></div></div>
+
+<p><strong>That’s it for today. Happy edge computing to everybody! :)</strong></p>]]></content><author><name>carlosabalde</name></author><category term="english" /><category term="dev" /><summary type="html"><![CDATA[There is no break for marketers. Any day is a good day to coin new bullshit buzzwords and make the world a worst place to live in. This is particularly painful in the technical arena. You simply can’t safely leave home without your bullshit detector. This post is about one of those popular buzzwords: edge computing. Did we need a new word to talk about decentralization in the cloud -fog? 🤷- computing era? Probably not, but that’s not the point here :) It looks like that term called edge computing is becoming more and more popular lately. In fact, it seems I’ve working on edge computing for the last few years and I wasn’t even aware of that. I guess it’s time to update my LinkedIn headline. All kidding aside, yes, edge computing is a highly recommended strategy to have in mind in your global architecture. But, what logic should be moved to the edge? How to move that logic? There is not simple answer for those questions, but this old post by Per Buer about moving access control logic to a caching layer built on top of Varnish Cache is a nice starting point.]]></summary></entry><entry><title type="html">Repacking an ubuntu/xenial64 Vagrant box</title><link href="https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box" rel="alternate" type="text/html" title="Repacking an ubuntu/xenial64 Vagrant box" /><published>2017-11-12T15:30:00+01:00</published><updated>2017-11-12T15:30:00+01:00</updated><id>https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box</id><content type="html" xml:base="https://www.carlosabalde.com/blog/2017/11/12/repacking-ubuntu-xenial64-vagrant-box"><![CDATA[<p>I use Vagrant + VirtualBox + SaltStack a lot in order to create lightweight &amp; reproducible development environments. I tend to use custom boxes based on popular public boxes like <code class="language-plaintext highlighter-rouge">ubuntu/trusty64</code>. Usually my boxes are simple mirrors, but due to some unpleasing experiences in the past I prefer to always keep my own copies and completely freeze my development environments.</p>
+
+<p>Creating a mirror of an existing box is trivial: minimal Vagrant file disabling the <code class="language-plaintext highlighter-rouge">ssh.insert_key</code> feature + <code class="language-plaintext highlighter-rouge">vagrant up</code> + <code class="language-plaintext highlighter-rouge">vagrant package</code> + upload to <a href="https://app.vagrantup.com">https://app.vagrantup.com</a>. I’ve done that many times and it works like a charm. To be more precise, it has been working like a charm until today, when I tried to create a mirror of the <code class="language-plaintext highlighter-rouge">ubuntu/xenial64</code> box.</p>
+
+<!--more-->
+
+<p>Of course I’m not the first one experiencing this problem. The symptoms have been extensible described in <a href="https://github.com/hashicorp/vagrant/issues/5186/">https://github.com/hashicorp/vagrant/issues/5186/</a>. However, I was not able to find any article clearly describing the solution to this headache. Therefore, here it goes the recipe you’re looking for :)</p>
+
+<ol>
+  <li>
+    <p>Do the usual thing: create a minimal Vagrant file, but don’t worry about the <code class="language-plaintext highlighter-rouge">ssh.insert_key</code> feature this time. Let Vagrant secure the VM during the initial boot. We’ll revert that later.</p>
+
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> Vagrant.configure('2') do |config|
+   config.vm.box = 'ubuntu/xenial64'
+   config.vm.box_version = '=20171110.0.0'
+   config.vm.provider 'virtualbox' do |vb|
+     vb.customize [ 'modifyvm', :id, '--uartmode1', 'disconnected' ]
+   end
+   # config.ssh.insert_key = false
+   # config.ssh.username = 'vagrant'
+   config.vbguest.auto_update = false
+ end
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>Create the <code class="language-plaintext highlighter-rouge">vagrant</code> user, add it to the same groups assigned to the <code class="language-plaintext highlighter-rouge">ubuntu</code> user, set up its SSH key using the insecure Vagrant key pair, etc. Basically, you need to follow the steps in <a href="https://www.vagrantup.com/docs/boxes/base.html">https://www.vagrantup.com/docs/boxes/base.html</a> to fix what’s missing in the base box.</p>
+
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> $ sudo adduser vagrant
+ $ sudo usermod -a -G ubuntu vagrant
+ $ sudo usermod -a -G adm vagrant
+ $ ...
+ $ sudo usermod -a -G lxd vagrant
+ $ sudo -u vagrant mkdir /home/vagrant/.ssh/
+ $ sudo -u vagrant chmod 700 /home/vagrant/.ssh/
+ $ sudo -u vagrant wget --no-check-certificate \
+     https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub \
+     -O /home/vagrant/.ssh/authorized_keys
+ $ sudo -u vagrant chmod 600 /home/vagrant/.ssh/authorized_keys
+ $ sudo visudo
+     # vagrant ALL=(ALL) NOPASSWD: ALL
+ $ sudo passwd root
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>Ungracefully stop the VM (for example using the VirtualBox UI) and then adjust the Vagrant file uncommenting the SSH options initially disabled. Next, remove the random private key stored in the host machine during the initial boot (i.e. <code class="language-plaintext highlighter-rouge">rm .vagrant/machines/default/virtualbox/private_key</code>).</p>
+  </li>
+  <li>
+    <p>Execute a <code class="language-plaintext highlighter-rouge">vagrant up + ssh + halt</code> cycle in order to check everything is working as expected. Then you can package the box in the usual way (i.e. <code class="language-plaintext highlighter-rouge">vagrant package</code>) and destroy the VM (i.e. <code class="language-plaintext highlighter-rouge">vagrant destroy</code>).</p>
+  </li>
+  <li>
+    <p>You may want to check everything works as expected in preparation for the upload of the box to <a href="https://app.vagrantup.com">https://app.vagrantup.com</a>. You can do it the usual way:</p>
+
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> $ vagrant box add --name foo /path/to/package.box
+ $ vagrant up
+     Vagrant.configure('2') do |config|
+       config.vm.box = 'foo'
+     end
+ $ VAGRANT_LOG=info vagrant ssh
+ $ ...
+ $ vagrant destroy
+ $ vagrant box remove foo
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>That’s all you need to know. It’s not rocket science at all, but this is the kind of thing you expect to work out of the box (pun intended :) and it becomes a headache when things don’t go as expected.</p>
+  </li>
+</ol>
+
+<p>Hope it helps! :)</p>]]></content><author><name>carlosabalde</name></author><category term="english" /><category term="dev" /><summary type="html"><![CDATA[I use Vagrant + VirtualBox + SaltStack a lot in order to create lightweight &amp; reproducible development environments. I tend to use custom boxes based on popular public boxes like ubuntu/trusty64. Usually my boxes are simple mirrors, but due to some unpleasing experiences in the past I prefer to always keep my own copies and completely freeze my development environments. Creating a mirror of an existing box is trivial: minimal Vagrant file disabling the ssh.insert_key feature + vagrant up + vagrant package + upload to https://app.vagrantup.com. I’ve done that many times and it works like a charm. To be more precise, it has been working like a charm until today, when I tried to create a mirror of the ubuntu/xenial64 box.]]></summary></entry><entry><title type="html">Semifrío de fresas y frambuesas</title><link href="https://www.carlosabalde.com/blog/2016/07/07/semifrio-de-fresas-y-frambuesas" rel="alternate" type="text/html" title="Semifrío de fresas y frambuesas" /><published>2016-07-07T22:20:00+02:00</published><updated>2016-07-07T22:20:00+02:00</updated><id>https://www.carlosabalde.com/blog/2016/07/07/semifrio-de-fresas-y-frambuesas</id><content type="html" xml:base="https://www.carlosabalde.com/blog/2016/07/07/semifrio-de-fresas-y-frambuesas"><![CDATA[<p>De todas las recetas de postres facilotes con Thermomix que he probado últimamente esta es mi preferida. Se necesita muy poca cosa:</p>
+
+<!--more-->
+
+<ul>
+  <li>500 g de nata líquida para montar.</li>
+  <li>6 hojas de gelatina neutra.</li>
+  <li>450 g de fresas.</li>
+  <li>100 g de frambuesas.</li>
+  <li>1 limón.</li>
+  <li>200 g de azúcar.</li>
+  <li>1 yogur natural.</li>
+  <li>Unos 10 bizcochos de soletilla.</li>
+</ul>
+
+<p><img src="/assets/images/blog/semifrio-de-fresas-y-frambuesas.jpg" alt="Semifrío de fresas y frambuesas" /></p>
+
+<p>El procedimiento también es muy simplón, aunque con una espera en medio para el enfriamiento del jarabe de fresas que se prepara:</p>
+
+<ol>
+  <li>Montar la nata (mariposa + velocidad 3,5) y reservarla.</li>
+  <li>Hidratar las hojas de gelatina con agua fría.</li>
+  <li>Triturar las fresas lavadas + algo más de la mitad de las frambuesas lavadas + el zumo del limón + el azúcar (15 seg + velocidad 5).</li>
+  <li>Cocinar la mezcla anterior (10 min + velocidad 3 + 100ºC).</li>
+  <li>Incorporar al la mezcla anterior las hojas de gelatina bien escurridas de agua y triturar (10 seg + velocidad 4).</li>
+  <li>Introducir aproximadamente un cubilete de la mezcla anterior en una manga pastelera y volcar el resto en un bol.</li>
+  <li>Cuando el contenido del bol haya enfriado lo suficiente volver a introducir en el vaso, junto con la nata montada y el yogur, y mezclarlo todo (30 seg + velocidad 3,5).</li>
+  <li>Cubrir la base de un molde desmontable con los bizcochos de soletilla, sobre éstos verter la mezcla anterior, e introducir en la nevera.</li>
+  <li>Pasadas un par de horas decorar la superficie con la manga pastelera, rematar la decoración con las frambuesas previamente reservadas, y devolver a la nevera el tiempo suficiente para que la gelatina termine de cuajar.</li>
+</ol>]]></content><author><name>carlosabalde</name></author><category term="spanish" /><category term="recipe" /><summary type="html"><![CDATA[De todas las recetas de postres facilotes con Thermomix que he probado últimamente esta es mi preferida. Se necesita muy poca cosa:]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://www.carlosabalde.com/assets/images/blog/semifrio-de-fresas-y-frambuesas.jpg" /><media:content medium="image" url="https://www.carlosabalde.com/assets/images/blog/semifrio-de-fresas-y-frambuesas.jpg" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Scripting iTerm2 using AppleScript</title><link href="https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript" rel="alternate" type="text/html" title="Scripting iTerm2 using AppleScript" /><published>2016-07-05T09:00:00+02:00</published><updated>2016-07-05T09:00:00+02:00</updated><id>https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript</id><content type="html" xml:base="https://www.carlosabalde.com/blog/2016/07/05/scripting-iterm2-using-applescript"><![CDATA[<p>As a developer and as a OSX user I use <a href="https://www.iterm2.com">iTerm2</a> in a daily basis. It’s an awesome open source piece of software. Besides, when you get familiar with features such as split panes, it’s also an amazing productivity booster.</p>
+
+<!--more-->
+
+<p>From time to time I need to SSH to multiple servers to make some checks. For example, a few days ago I needed to SSH to 8 Varnish Cache and 3 Redis servers to check some log files, access certain stats, etc. I needed to do that at 10 AM, then 20 minutes later again, then at 12 PM, etc. Every time I would need to create a new iTerm2 tab, then create enough panes, then execute SSH commands, etc. It looks like something a machine could do for me, isn’t it?</p>
+
+<p>Of course <a href="https://www.iterm2.com/documentation-scripting.html">the answer is yes</a>. The pleasant surprise here was how extremely simple it happened to be creating a disposable trivial script to do the job. All panes and SSH connections ready in less than five seconds anytime I needed them. Combine this with the iTerm2 broadcasting feature and you’ll understand what love is :)️</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#! /usr/bin/osascript
+
+set commands to { ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "tail -f /var/log/messages | grep ..." ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "redis-cli -c -p 6379" ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "redis-cli -c -p 6379" ¬
+    }, ¬
+    { ¬
+        connection: "ssh -o ServerAliveInterval=60 carlos@...", ¬
+        action: "redis-cli -c -p 6379" ¬
+    } ¬
+}
+
+tell application "iTerm"
+    # Create tab.
+    tell current window
+        create tab with default profile
+    end tell
+
+    # Create sessions.
+    tell current session of current window
+        split horizontally with default profile
+        split horizontally with default profile
+        split horizontally with default profile
+        split horizontally with default profile
+    end tell
+    tell session 1 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 3 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 5 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 7 of current tab of current window
+        split vertically with default profile
+    end tell
+    tell session 9 of current tab of current window
+        split vertically with default profile
+        split vertically with default profile
+    end tell
+
+    # Establish connections &amp; execute actions.
+    repeat with i from 1 to count of commands
+        tell session i of current tab of current window
+            write text (connection of item i of commands)
+            write text (action of item i of commands)
+        end tell
+    end repeat
+end tell
+</code></pre></div></div>]]></content><author><name>carlosabalde</name></author><category term="english" /><category term="dev" /><summary type="html"><![CDATA[As a developer and as a OSX user I use iTerm2 in a daily basis. It’s an awesome open source piece of software. Besides, when you get familiar with features such as split panes, it’s also an amazing productivity booster.]]></summary></entry><entry><title type="html">Hey there! I am using Jekyll</title><link href="https://www.carlosabalde.com/blog/2016/07/04/hey-there-i-am-using-jekyll" rel="alternate" type="text/html" title="Hey there! I am using Jekyll" /><published>2016-07-04T08:00:00+02:00</published><updated>2016-07-04T08:00:00+02:00</updated><id>https://www.carlosabalde.com/blog/2016/07/04/hey-there-i-am-using-jekyll</id><content type="html" xml:base="https://www.carlosabalde.com/blog/2016/07/04/hey-there-i-am-using-jekyll"><![CDATA[<p>I’ve moved my blog away from Tumblr. This new site is powered by <a href="https://jekyllrb.com">Jekyll</a> and hosted using <a href="https://pages.github.com">GitHub Pages</a>. Please, do not expect any improvements in the posting rate :)</p>
+
+<!--more-->
+
+<p>I don’t know why anybody would want to read my previous -or current- blog, but just in case you’re interested in doing such a thing, the old site will remain available at <a href="https://carlosabalde.tumblr.com">carlosabalde.tumblr.com</a>.</p>]]></content><author><name>carlosabalde</name></author><category term="english" /><category term="parole parole" /><summary type="html"><![CDATA[I’ve moved my blog away from Tumblr. This new site is powered by Jekyll and hosted using GitHub Pages. Please, do not expect any improvements in the posting rate :)]]></summary></entry></feed>
